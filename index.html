@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出行计划助手 v7 - 智能价格监控 & AI攻略生成</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #ff6b9d; --primary-light: #ffe0eb; --primary-dark: #e55a8a;
+            --secondary: #6c5ce7; --bg: #f8f9fc; --card-bg: #fff;
+            --text: #2d3436; --text-secondary: #636e72; --border: #e8eaf0;
+            --shadow: 0 2px 8px rgba(0,0,0,0.06); --radius: 8px;
+            --success: #55efc4; --warning: #ffa502; --info: #74b9ff;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; font-size: 13px; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 12px; }
+        .header { background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: var(--radius); padding: 14px 20px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: white; }
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .header-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .header h1 { font-size: 18px; margin-bottom: 1px; }
+        .header p { font-size: 11px; opacity: 0.9; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .stats { display: flex; gap: 10px; }
+        .stat { background: rgba(255,255,255,0.15); padding: 5px 10px; border-radius: 5px; text-align: center; min-width: 65px; }
+        .stat-value { font-size: 15px; font-weight: 700; }
+        .stat-label { font-size: 9px; opacity: 0.9; }
+        .update-indicator { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,0.15); padding: 5px 10px; border-radius: 5px; font-size: 10px; }
+        .pulse { width: 5px; height: 5px; background: var(--success); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .layout { display: grid; grid-template-columns: 280px 1fr; gap: 12px; }
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .card-header { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid var(--bg); }
+        .card-icon { width: 28px; height: 28px; border-radius: 5px; background: var(--primary-light); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .card-title { font-size: 14px; font-weight: 600; flex: 1; }
+        .form-group { margin-bottom: 10px; position: relative; }
+        .form-label { display: block; margin-bottom: 4px; color: var(--text-secondary); font-size: 11px; font-weight: 500; }
+        .form-input, .form-select { width: 100%; padding: 8px 10px; border: 2px solid var(--border); border-radius: 5px; font-size: 12px; transition: all 0.2s; }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--primary); }
+        .searchable-select { position: relative; }
+        .searchable-input { width: 100%; padding: 8px 10px; border: 2px solid var(--border); border-radius: 5px; font-size: 12px; cursor: pointer; }
+        .searchable-input:focus { outline: none; border-color: var(--primary); }
+        .searchable-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid var(--primary); border-top: none; border-radius: 0 0 5px 5px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .searchable-dropdown.show { display: block; }
+        .dropdown-item { padding: 8px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--bg); }
+        .dropdown-item:hover { background: var(--primary-light); }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-empty { padding: 12px; text-align: center; color: var(--text-secondary); font-size: 11px; }
+        .date-range { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .days-display { background: var(--bg); padding: 8px 10px; border-radius: 5px; font-size: 12px; color: var(--text-secondary); text-align: center; border: 1px dashed var(--border); }
+        .days-display strong { color: var(--primary); font-size: 14px; }
+        .btn { width: 100%; padding: 10px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(255,107,157,0.3); }
+        .btn-secondary { background: linear-gradient(135deg, var(--secondary), #5b4bc4); margin-top: 8px; }
+        .btn-secondary:hover { box-shadow: 0 4px 12px rgba(108,92,231,0.3); }
+        .monitor-section { margin-bottom: 12px; }
+        .monitor-section:last-child { margin-bottom: 0; }
+        .section-divider { height: 1px; background: var(--border); margin: 12px 0; }
+        .quick-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+        .quick-stat { background: var(--bg); padding: 8px; border-radius: 5px; text-align: center; }
+        .quick-stat-value { font-size: 18px; font-weight: 700; color: var(--primary); }
+        .quick-stat-label { font-size: 9px; color: var(--text-secondary); margin-top: 2px; }
+        .price-monitor-card { background: linear-gradient(135deg, #fff5f7, #ffe8ee); border: 2px solid var(--primary-light); border-radius: 7px; padding: 12px; }
+        .price-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,107,157,0.15); }
+        .price-main-left { display: flex; flex-direction: column; gap: 3px; }
+        .price-main-label { font-size: 10px; color: var(--text-secondary); }
+        .price-main-value { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .price-change { font-size: 11px; color: var(--success); display: flex; align-items: center; gap: 3px; }
+        .price-platforms { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .platform-link { background: white; padding: 8px; border-radius: 5px; text-decoration: none; color: var(--text); display: flex; align-items: center; gap: 6px; border: 1px solid var(--border); transition: all 0.2s; }
+        .platform-link:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(255,107,157,0.15); }
+        .platform-logo { width: 20px; height: 20px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; }
+        .fliggy { background: #ff6600; }
+        .ctrip { background: #2671c6; }
+        .qunar { background: #00a0e9; }
+        .tongcheng { background: #00b5ad; }
+        .platform-info { flex: 1; }
+        .platform-name { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+        .platform-price { font-size: 10px; color: var(--text-secondary); }
+        .platform-arrow { color: var(--primary); font-size: 14px; }
+        .trend-chart-container { background: var(--bg); border-radius: 7px; padding: 12px; margin-top: 10px; }
+        .trend-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .trend-title { font-size: 12px; font-weight: 600; }
+        .trend-period { font-size: 10px; color: var(--text-secondary); }
+        .chart-bars { display: flex; align-items: flex-end; gap: 4px; height: 80px; padding: 0 10px; }
+        .chart-bar { flex: 1; background: linear-gradient(to top, var(--primary), var(--primary-light)); border-radius: 3px 3px 0 0; min-height: 10px; transition: all 0.3s; }
+        .chart-bar:hover { opacity: 0.8; }
+        .tips-inline { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+        .tip-mini { display: flex; gap: 6px; padding: 6px; background: var(--bg); border-radius: 5px; font-size: 10px; }
+        .tip-mini-icon { width: 16px; height: 16px; background: var(--primary-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+        .tip-mini-text { flex: 1; line-height: 1.3; }
+        .strategy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+        .strategy-item { background: white; border-radius: 7px; padding: 10px; border-left: 3px solid var(--primary); box-shadow: var(--shadow); cursor: pointer; }
+        .strategy-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .strategy-header { display: flex; gap: 7px; margin-bottom: 6px; }
+        .platform-icon { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .xhs { background: #ffebee; } .douyin { background: #e3f2fd; } .mafengwo { background: #f3e5f5; }
+        .strategy-title { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+        .strategy-stats { display: flex; gap: 6px; font-size: 9px; color: #b2bec3; }
+        .strategy-desc { font-size: 10px; color: var(--text-secondary); line-height: 1.3; }
+        .itinerary-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .itinerary-text { max-height: 500px; overflow-y: auto; }
+        .day-plan { background: var(--bg); border-radius: 7px; padding: 10px; margin-bottom: 10px; border-left: 3px solid var(--primary); }
+        .day-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .day-title { font-size: 13px; font-weight: 600; color: var(--primary); }
+        .day-date { font-size: 10px; color: var(--text-secondary); }
+        .spot-item { padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        .spot-item:last-child { border-bottom: none; }
+        .spot-name { font-size: 12px; font-weight: 600; margin-bottom: 3px; display: flex; align-items: center; gap: 5px; }
+        .spot-time { font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; }
+        .spot-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 4px; }
+        .spot-link { font-size: 10px; color: var(--secondary); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
+        .spot-link:hover { text-decoration: underline; }
+        .spot-link .material-icons { font-size: 12px; }
+        .map-wrapper { position: relative; }
+        .map-controls { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; gap: 6px; }
+        .map-btn { background: white; border: 1px solid var(--border); padding: 6px 10px; border-radius: 5px; font-size: 10px; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+        .map-btn:hover { border-color: var(--primary); }
+        .map-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .map-btn .material-icons { font-size: 14px; }
+        .map-container { height: 500px; border-radius: 7px; overflow: hidden; border: 2px solid var(--border); }
+        #map { width: 100%; height: 100%; }
+        .custom-marker { background: var(--primary); border: 3px solid white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 11px; box-shadow: 0 2px 8px rgba(255,107,157,0.4); }
+        .route-line { stroke: var(--primary); stroke-width: 3; stroke-opacity: 0.7; stroke-dasharray: 8, 6; fill: none; }
+        .empty { text-align: center; padding: 20px 10px; color: #b2bec3; }
+        .empty-icon { font-size: 36px; margin-bottom: 8px; opacity: 0.3; }
+        .empty-title { font-size: 12px; color: var(--text-secondary); margin-bottom: 3px; }
+        .empty-desc { font-size: 10px; }
+        .notify { display: flex; align-items: center; gap: 5px; padding: 7px 9px; background: #e8f5e9; border-radius: 5px; margin-top: 8px; font-size: 10px; color: #2e7d32; }
+        .toast { position: fixed; bottom: 16px; right: 16px; background: var(--text); color: white; padding: 10px 16px; border-radius: 7px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 7px; transform: translateY(100px); opacity: 0; transition: all 0.3s; z-index: 1000; font-size: 12px; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        @media (max-width: 1400px) { .itinerary-container { grid-template-columns: 1fr; } .map-container { height: 400px; } }
+        @media (max-width: 1200px) { .layout { grid-template-columns: 1fr; } .quick-stats { grid-template-columns: repeat(2, 1fr); } .tips-inline { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-icon">✈️</div>
+                <div><h1>出行计划助手 v7</h1><p>智能价格监控 · AI攻略生成 · 多平台比价</p></div>
+            </div>
+            <div class="header-right">
+                <div class="stats">
+                    <div class="stat"><div class="stat-value" id="totalPlans">0</div><div class="stat-label">监控计划</div></div>
+                    <div class="stat"><div class="stat-value" id="avgSavings">¥0</div><div class="stat-label">平均节省</div></div>
+                    <div class="stat"><div class="stat-value" id="notifications">0</div><div class="stat-label">已发通知</div></div>
+                </div>
+                <div class="update-indicator">
+                    <div class="pulse"></div>
+                    <span id="lastUpdate">最后更新: --:--</span>
+                </div>
+            </div>
+        </div>
+        <div class="layout">
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-icon material-icons">flight_takeoff</div>
+                        <div class="card-title">创建出行计划</div>
+                    </div>
+                    <form id="travelForm">
+                        <div class="form-group">
+                            <label class="form-label">出发城市</label>
+                            <div class="searchable-select" id="departureSelect">
+                                <input type="text" class="searchable-input" id="departureInput" placeholder="输入城市名称搜索..." autocomplete="off" required>
+                                <div class="searchable-dropdown" id="departureDropdown"></div>
+                            </div>
+                            <input type="hidden" id="departure" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">目的地城市</label>
+                            <div class="searchable-select" id="destinationSelect">
+                                <input type="text" class="searchable-input" id="destinationInput" placeholder="输入城市名称搜索..." autocomplete="off" required>
+                                <div class="searchable-dropdown" id="destinationDropdown"></div>
+                            </div>
+                            <input type="hidden" id="destination" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">出行日期</label>
+                            <div class="date-range">
+                                <input type="date" class="form-input" id="departDate" required>
+                                <input type="date" class="form-input" id="returnDate" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">出行天数</label>
+                            <div class="days-display" id="daysDisplay">选择日期后自动计算</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">交通方式</label>
+                            <select class="form-select" id="transportType">
+                                <option value="flight">✈️ 飞机</option>
+                                <option value="train">🚄 火车/高铁</option>
+                                <option value="both">🔄 对比</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn"><span class="material-icons" style="font-size: 16px;">monitor_heart</span>开始智能监控</button>
+                        <button type="button" class="btn btn-secondary" id="generateItineraryBtn" style="display: none;"><span class="material-icons" style="font-size: 16px;">map</span>生成AI旅行攻略</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon material-icons">trending_up</div>
+                    <div class="card-title">实时监控中心</div>
+                    <div class="notify" id="notifyStatus" style="display: none;"><span class="material-icons" style="font-size: 14px;">check_circle</span>钉钉通知已就绪</div>
+                </div>
+                <div class="monitor-section" id="overviewSection">
+                    <div class="quick-stats">
+                        <div class="quick-stat"><div class="quick-stat-value" id="todayLowest">-</div><div class="quick-stat-label">今日最低价</div></div>
+                        <div class="quick-stat"><div class="quick-stat-value" id="todayChanges" style="color: var(--success);">-</div><div class="quick-stat-label">价格变动</div></div>
+                        <div class="quick-stat"><div class="quick-stat-value" id="alertsCount" style="color: var(--warning);">0</div><div class="quick-stat-label">价格预警</div></div>
+                        <div class="quick-stat"><div class="quick-stat-value" style="color: var(--secondary);">5min</div><div class="quick-stat-label">刷新间隔</div></div>
+                    </div>
+                </div>
+                <div class="section-divider"></div>
+                <div class="monitor-section" id="priceSection">
+                    <div class="card-header" style="margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+                        <div class="card-icon material-icons" style="width: 24px; height: 24px; font-size: 14px;">attach_money</div>
+                        <div class="card-title" style="font-size: 13px;">智能价格监控</div>
+                    </div>
+                    <div id="priceDisplay">
+                        <div class="empty" style="padding: 16px 8px;">
+                            <div class="empty-icon material-icons" style="font-size: 32px;">search</div>
+                            <div class="empty-title" style="font-size: 11px;">暂无监控数据</div>
+                            <div class="empty-desc" style="font-size: 9px;">请在左侧设定出行计划</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="section-divider"></div>
+                <div class="monitor-section" id="tipsSection">
+                    <div class="card-header" style="margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+                        <div class="card-icon material-icons" style="width: 24px; height: 24px; font-size: 14px;">lightbulb</div>
+                        <div class="card-title" style="font-size: 13px;">省钱小贴士</div>
+                    </div>
+                    <div class="tips-inline">
+                        <div class="tip-mini"><div class="tip-mini-icon">💡</div><div class="tip-mini-text">提前 7-15 天预订机票通常价格最优</div></div>
+                        <div class="tip-mini"><div class="tip-mini-icon">📅</div><div class="tip-mini-text">周二、周三的机票价格相对较低</div></div>
+                        <div class="tip-mini"><div class="tip-mini-icon">🎯</div><div class="tip-mini-text">避开节假日和周末出行可节省 30% 费用</div></div>
+                        <div class="tip-mini"><div class="tip-mini-icon">🔔</div><div class="tip-mini-text">设置价格提醒，抓住临时降价机会</div></div>
+                    </div>
+                </div>
+                <div class="section-divider"></div>
+                <div class="monitor-section" id="strategySection">
+                    <div class="card-header" style="margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+                        <div class="card-icon material-icons" style="width: 24px; height: 24px; font-size: 14px;">article</div>
+                        <div class="card-title" style="font-size: 13px;">热门攻略</div>
+                    </div>
+                    <div id="strategyContainer">
+                        <div class="empty" style="padding: 16px 8px;">
+                            <div class="empty-icon material-icons" style="font-size: 32px;">article</div>
+                            <div class="empty-title" style="font-size: 11px;">攻略推荐待生成</div>
+                            <div class="empty-desc" style="font-size: 9px;">设定计划后自动抓取热门攻略</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="section-divider"></div>
+                <div class="monitor-section" id="itinerarySection" style="display: none;">
+                    <div class="card-header" style="margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+                        <div class="card-icon material-icons" style="width: 24px; height: 24px; font-size: 14px;">explore</div>
+                        <div class="card-title" style="font-size: 13px;">自定义旅行攻略</div>
+                    </div>
+                    <div class="itinerary-container">
+                        <div class="itinerary-text" id="itineraryText">
+                            <div class="empty" style="padding: 30px 10px;">
+                                <div class="empty-icon material-icons" style="font-size: 40px;">map</div>
+                                <div class="empty-title" style="font-size: 12px;">点击"生成AI旅行攻略"</div>
+                                <div class="empty-desc" style="font-size: 10px;">基于您的出行计划智能生成详细行程</div>
+                            </div>
+                        </div>
+                        <div class="map-wrapper">
+                            <div class="map-controls">
+                                <button class="map-btn" id="toggleRouteBtn"><span class="material-icons">directions</span>路线规划</button>
+                                <button class="map-btn" id="resetMapBtn"><span class="material-icons">my_location</span>重置视野</button>
+                            </div>
+                            <div class="map-container">
+                                <div id="map"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast"><span class="material-icons" style="font-size: 16px;">check_circle</span><span id="toastMsg">操作成功</span></div>
+    <script>        let currentPlan = null;
+        let map = null;
+        let markers = [];
+        let routeLine = null;
+        let showRoute = false;
+        const REFRESH_INTERVAL = 5 * 60 * 1000;
+        
+        const cityDatabase = [
+            { name: '北京', lat: 39.9042, lng: 116.4074 },
+            { name: '上海', lat: 31.2304, lng: 121.4737 },
+            { name: '广州', lat: 23.1291, lng: 113.2644 },
+            { name: '深圳', lat: 22.5431, lng: 114.0579 },
+            { name: '成都', lat: 30.5728, lng: 104.0668 },
+            { name: '重庆', lat: 29.4316, lng: 106.9123 },
+            { name: '杭州', lat: 30.2741, lng: 120.1551 },
+            { name: '南京', lat: 32.0603, lng: 118.7969 },
+            { name: '武汉', lat: 30.5928, lng: 114.3055 },
+            { name: '西安', lat: 34.3416, lng: 108.9398 },
+            { name: '厦门', lat: 24.4798, lng: 118.0894 },
+            { name: '三亚', lat: 18.2528, lng: 109.5117 },
+            { name: '昆明', lat: 25.0389, lng: 102.7183 },
+            { name: '青岛', lat: 36.0671, lng: 120.3826 },
+            { name: '大连', lat: 38.9140, lng: 121.6147 },
+            { name: '大理', lat: 25.6065, lng: 100.2676 },
+            { name: '丽江', lat: 26.8721, lng: 100.2334 },
+            { name: '桂林', lat: 25.2736, lng: 110.2902 },
+            { name: '长沙', lat: 28.2282, lng: 112.9388 },
+            { name: '天津', lat: 39.3434, lng: 117.3616 },
+            { name: '苏州', lat: 31.2989, lng: 120.5853 }
+        ];
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function updateTime() {
+            const now = new Date();
+            const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            document.getElementById('lastUpdate').textContent = `最后更新: ${t}`;
+        }
+
+        function initSearchableSelect(inputId, dropdownId, hiddenId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            const hidden = document.getElementById(hiddenId);
+            
+            input.addEventListener('focus', () => {
+                filterDropdown(input.value, dropdown, hidden);
+                dropdown.classList.add('show');
+            });
+            
+            input.addEventListener('input', () => {
+                filterDropdown(input.value, dropdown, hidden);
+            });
+            
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                }
+            });
+        }
+
+        function filterDropdown(query, dropdown, hidden) {
+            const filtered = cityDatabase.filter(city => 
+                city.name.toLowerCase().includes(query.toLowerCase())
+            );
+            
+            dropdown.innerHTML = '';
+            
+            if (filtered.length === 0) {
+                dropdown.innerHTML = '<div class="dropdown-empty">未找到匹配城市</div>';
+                return;
+            }
+            
+            filtered.forEach(city => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.textContent = city.name;
+                item.addEventListener('click', () => {
+                    const inputId = hidden.replace('departure', 'departureInput').replace('destination', 'destinationInput');
+                    document.getElementById(inputId).value = city.name;
+                    hidden.value = city.name;
+                    dropdown.classList.remove('show');
+                });
+                dropdown.appendChild(item);
+            });
+        }
+
+        function calculateDays() {
+            const departDate = document.getElementById('departDate').value;
+            const returnDate = document.getElementById('returnDate').value;
+            const daysDisplay = document.getElementById('daysDisplay');
+            
+            if (departDate && returnDate) {
+                const start = new Date(departDate);
+                const end = new Date(returnDate);
+                const diffTime = Math.abs(end - start);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                
+                if (diffDays > 0) {
+                    daysDisplay.innerHTML = `<strong>${diffDays}</strong> 天`;
+                    return diffDays;
+                } else {
+                    daysDisplay.textContent = '返程日期需晚于出发日期';
+                    return null;
+                }
+            } else {
+                daysDisplay.textContent = '选择日期后自动计算';
+                return null;
+            }
+        }
+
+        document.getElementById('departDate').addEventListener('change', calculateDays);
+        document.getElementById('returnDate').addEventListener('change', calculateDays);
+
+        // City itinerary templates (expanded to 8 cities)
+        const itineraryTemplates = {
+            '北京': [
+                { day: 1, spots: [
+                    { name: '故宫博物院', time: '09:00-12:00', desc: '明清两代皇家宫殿，世界文化遗产', link: 'https://www.dpm.org.cn', lat: 39.9163, lng: 116.3972 },
+                    { name: '天安门广场', time: '14:00-16:00', desc: '世界上最大的城市中心广场', link: 'https://baike.baidu.com/item/天安门广场', lat: 39.9042, lng: 116.3975 },
+                    { name: '王府井大街', time: '17:00-19:00', desc: '百年商业街，美食购物天堂', link: 'https://baike.baidu.com/item/王府井大街', lat: 39.9109, lng: 116.4134 }
+                ]},
+                { day: 2, spots: [
+                    { name: '八达岭长城', time: '08:00-12:00', desc: '万里长城的精华段落', link: 'https://www.badaling.cn', lat: 40.3604, lng: 116.0142 },
+                    { name: '颐和园', time: '14:00-17:00', desc: '中国现存规模最大、保存最完整的皇家园林', link: 'https://www.summerpalace-china.com', lat: 39.9999, lng: 116.2755 }
+                ]},
+                { day: 3, spots: [
+                    { name: '天坛公园', time: '09:00-11:30', desc: '明清皇帝祭天祈谷的场所', link: 'https://baike.baidu.com/item/天坛', lat: 39.8822, lng: 116.4066 },
+                    { name: '南锣鼓巷', time: '14:00-17:00', desc: '北京最古老的街区之一，文艺小店云集', link: 'https://baike.baidu.com/item/南锣鼓巷', lat: 39.9351, lng: 116.4039 }
+                ]}
+            ],
+            '上海': [
+                { day: 1, spots: [
+                    { name: '外滩', time: '09:00-11:00', desc: '万国建筑博览群，黄浦江畔经典景观', link: 'https://baike.baidu.com/item/外滩', lat: 31.2397, lng: 121.4906 },
+                    { name: '南京路步行街', time: '14:00-17:00', desc: '中华商业第一街', link: 'https://baike.baidu.com/item/南京路步行街', lat: 31.2359, lng: 121.4757 },
+                    { name: '豫园', time: '18:00-20:00', desc: '明代江南古典园林', link: 'https://www.yuyuan.com', lat: 31.2272, lng: 121.4921 }
+                ]},
+                { day: 2, spots: [
+                    { name: '东方明珠塔', time: '09:00-11:30', desc: '上海地标性建筑，俯瞰全城', link: 'https://www.orientalpearltower.com', lat: 31.2397, lng: 121.4998 },
+                    { name: '上海迪士尼乐园', time: '13:00-20:00', desc: '中国大陆首座迪士尼主题乐园', link: 'https://www.shanghaidisneyresort.com', lat: 31.1434, lng: 121.6580 }
+                ]},
+                { day: 3, spots: [
+                    { name: '田子坊', time: '10:00-12:00', desc: '石库门里弄改造的艺术创意区', link: 'https://baike.baidu.com/item/田子坊', lat: 31.2240, lng: 121.4689 },
+                    { name: '上海博物馆', time: '14:00-16:30', desc: '中国古代艺术宝库', link: 'https://www.shanghaimuseum.net', lat: 31.2279, lng: 121.4755 }
+                ]}
+            ],
+            '杭州': [
+                { day: 1, spots: [
+                    { name: '西湖风景区', time: '09:00-12:00', desc: '人间天堂，世界文化遗产', link: 'https://www.hzwestlake.com', lat: 30.2429, lng: 120.1487 },
+                    { name: '雷峰塔', time: '14:00-16:00', desc: '西湖十景之一，白娘子传说', link: 'https://baike.baidu.com/item/雷峰塔', lat: 30.2307, lng: 120.1449 },
+                    { name: '河坊街', time: '17:00-19:00', desc: '南宋御街，杭州历史文化街区', link: 'https://baike.baidu.com/item/河坊街', lat: 30.2389, lng: 120.1686 }
+                ]},
+                { day: 2, spots: [
+                    { name: '灵隐寺', time: '09:00-11:30', desc: '江南著名古刹，千年佛教圣地', link: 'https://www.lingyinsi.com', lat: 30.2506, lng: 120.1019 },
+                    { name: '宋城', time: '13:00-17:00', desc: '大型宋代主题公园，《宋城千古情》演出', link: 'https://www.songcheng.com', lat: 30.1688, lng: 120.0976 }
+                ]},
+                { day: 3, spots: [
+                    { name: '西溪湿地', time: '09:00-12:00', desc: '城市中的天然氧吧', link: 'https://www.xixi.wetpark.com', lat: 30.2656, lng: 120.0739 },
+                    { name: '龙井村', time: '14:00-16:00', desc: '中国茶都，品茗赏景', link: 'https://baike.baidu.com/item/龙井村', lat: 30.2281, lng: 120.1027 }
+                ]}
+            ],
+            '成都': [
+                { day: 1, spots: [
+                    { name: '大熊猫繁育研究基地', time: '08:00-11:00', desc: '近距离观赏国宝大熊猫', link: 'https://www.panda.org.cn', lat: 30.7344, lng: 104.1458 },
+                    { name: '宽窄巷子', time: '14:00-17:00', desc: '清代古街道，成都慢生活代表', link: 'https://baike.baidu.com/item/宽窄巷子', lat: 30.6697, lng: 104.0564 },
+                    { name: '锦里古街', time: '18:00-20:00', desc: '三国文化商业街', link: 'https://baike.baidu.com/item/锦里', lat: 30.6434, lng: 104.0476 }
+                ]},
+                { day: 2, spots: [
+                    { name: '都江堰', time: '09:00-12:00', desc: '世界文化遗产，古代水利工程奇迹', link: 'https://www.djy517.com', lat: 31.0020, lng: 103.6163 },
+                    { name: '青城山', time: '13:00-17:00', desc: '道教名山，幽静清雅', link: 'https://baike.baidu.com/item/青城山', lat: 30.9079, lng: 103.5734 }
+                ]},
+                { day: 3, spots: [
+                    { name: '武侯祠', time: '09:00-11:30', desc: '三国文化圣地，诸葛亮纪念馆', link: 'https://www.whcibowuguan.com', lat: 30.6453, lng: 104.0473 },
+                    { name: '春熙路', time: '14:00-17:00', desc: '成都最繁华的商业街', link: 'https://baike.baidu.com/item/春熙路', lat: 30.6538, lng: 104.0797 }
+                ]}
+            ],
+            '西安': [
+                { day: 1, spots: [
+                    { name: '秦始皇兵马俑', time: '09:00-12:00', desc: '世界第八大奇迹', link: 'https://www.bmy.com.cn', lat: 34.3841, lng: 109.2785 },
+                    { name: '华清宫', time: '14:00-16:30', desc: '唐代皇家园林，杨贵妃沐浴之地', link: 'https://baike.baidu.com/item/华清宫', lat: 34.3634, lng: 109.2125 },
+                    { name: '大唐不夜城', time: '18:00-21:00', desc: '盛唐文化主题步行街', link: 'https://baike.baidu.com/item/大唐不夜城', lat: 34.2173, lng: 108.9566 }
+                ]},
+                { day: 2, spots: [
+                    { name: '西安城墙', time: '09:00-11:30', desc: '中国现存最完整的古城墙', link: 'https://www.xacw.com', lat: 34.2658, lng: 108.9541 },
+                    { name: '钟楼鼓楼', time: '14:00-16:00', desc: '西安标志性古建筑', link: 'https://baike.baidu.com/item/西安钟楼', lat: 34.2602, lng: 108.9427 },
+                    { name: '回民街', time: '17:00-19:00', desc: '西安美食聚集地', link: 'https://baike.baidu.com/item/回民街', lat: 34.2623, lng: 108.9405 }
+                ]},
+                { day: 3, spots: [
+                    { name: '陕西历史博物馆', time: '09:00-11:30', desc: '古都明珠，华夏宝库', link: 'https://www.sxhm.com', lat: 34.2238, lng: 108.9554 },
+                    { name: '大雁塔', time: '14:00-16:30', desc: '唐代古塔，玄奘法师译经处', link: 'https://baike.baidu.com/item/大雁塔', lat: 34.2183, lng: 108.9645 }
+                ]}
+            ],
+            '厦门': [
+                { day: 1, spots: [
+                    { name: '鼓浪屿', time: '09:00-17:00', desc: '海上花园，万国建筑博览', link: 'https://www.gulangyu.org', lat: 24.4465, lng: 118.0694 },
+                    { name: '中山路步行街', time: '18:00-20:00', desc: '厦门最老牌的商业街', link: 'https://baike.baidu.com/item/中山路步行街', lat: 24.4553, lng: 118.0834 }
+                ]},
+                { day: 2, spots: [
+                    { name: '南普陀寺', time: '09:00-11:00', desc: '闽南佛教胜地', link: 'https://www.nanputuo.com', lat: 24.4406, lng: 118.0938 },
+                    { name: '厦门大学', time: '14:00-16:00', desc: '中国最美大学之一', link: 'https://www.xmu.edu.cn', lat: 24.4383, lng: 118.0984 },
+                    { name: '环岛路', time: '17:00-19:00', desc: '海滨观光大道', link: 'https://baike.baidu.com/item/环岛路', lat: 24.4293, lng: 118.1164 }
+                ]},
+                { day: 3, spots: [
+                    { name: '曾厝垵', time: '10:00-12:00', desc: '文艺渔村，特色小吃街', link: 'https://baike.baidu.com/item/曾厝垵', lat: 24.4286, lng: 118.1232 },
+                    { name: '胡里山炮台', time: '14:00-16:00', desc: '近代海防遗址', link: 'https://baike.baidu.com/item/胡里山炮台', lat: 24.4301, lng: 118.1034 }
+                ]}
+            ],
+            '三亚': [
+                { day: 1, spots: [
+                    { name: '亚龙湾', time: '09:00-12:00', desc: '天下第一湾，热带海滨度假胜地', link: 'https://baike.baidu.com/item/亚龙湾', lat: 18.2306, lng: 109.6456 },
+                    { name: '天涯海角', time: '14:00-17:00', desc: '海南标志性景点', link: 'https://baike.baidu.com/item/天涯海角', lat: 18.2917, lng: 109.3506 }
+                ]},
+                { day: 2, spots: [
+                    { name: '南山文化旅游区', time: '09:00-12:00', desc: '108米海上观音像', link: 'https://www.nanshan.com', lat: 18.2953, lng: 109.2089 },
+                    { name: '蜈支洲岛', time: '13:00-17:00', desc: '中国的马尔代夫', link: 'https://www.wuzhizhou.com', lat: 18.3197, lng: 109.7269 }
+                ]},
+                { day: 3, spots: [
+                    { name: '大小洞天', time: '09:00-11:30', desc: '琼崖第一山水名胜', link: 'https://baike.baidu.com/item/大小洞天', lat: 18.3006, lng: 109.1667 },
+                    { name: '三亚湾', time: '16:00-18:00', desc: '椰梦长廊，观赏日落最佳地点', link: 'https://baike.baidu.com/item/三亚湾', lat: 18.2528, lng: 109.5117 }
+                ]}
+            ],
+            '昆明': [
+                { day: 1, spots: [
+                    { name: '石林风景区', time: '09:00-12:00', desc: '世界自然遗产，喀斯特地貌奇观', link: 'https://www.shilin.gov.cn', lat: 24.8177, lng: 103.3267 },
+                    { name: '滇池', time: '14:00-17:00', desc: '高原明珠，红嘴鸥越冬地', link: 'https://baike.baidu.com/item/滇池', lat: 24.8829, lng: 102.6594 }
+                ]},
+                { day: 2, spots: [
+                    { name: '翠湖公园', time: '09:00-11:00', desc: '昆明市区最美的公园', link: 'https://baike.baidu.com/item/翠湖公园', lat: 25.0494, lng: 102.7056 },
+                    { name: '云南民族村', time: '13:00-17:00', desc: '展示云南25个少数民族文化', link: 'https://www.ynmzc.com', lat: 24.9678, lng: 102.6594 },
+                    { name: '金马碧鸡坊', time: '18:00-20:00', desc: '昆明标志性古建筑', link: 'https://baike.baidu.com/item/金马碧鸡坊', lat: 25.0367, lng: 102.7117 }
+                ]},
+                { day: 3, spots: [
+                    { name: '西山龙门', time: '09:00-11:30', desc: '俯瞰滇池全景', link: 'https://baike.baidu.com/item/西山', lat: 24.9706, lng: 102.6361 },
+                    { name: '官渡古镇', time: '14:00-16:30', desc: '千年古镇，历史文化名镇', link: 'https://baike.baidu.com/item/官渡古镇', lat: 24.9556, lng: 102.7556 }
+                ]}
+            ]
+        };
+
+        // Default template for cities without specific data
+        function getDefaultItinerary(cityName, cityData) {
+            return [
+                { day: 1, spots: [
+                    { name: `${cityName}市中心`, time: '09:00-12:00', desc: '探索城市核心区域，感受当地风情', link: '#', lat: cityData.lat, lng: cityData.lng },
+                    { name: `${cityName}博物馆`, time: '14:00-17:00', desc: '了解城市历史文化', link: '#', lat: cityData.lat + 0.01, lng: cityData.lng + 0.01 }
+                ]},
+                { day: 2, spots: [
+                    { name: `${cityName}公园`, time: '09:00-11:30', desc: '休闲放松，欣赏自然风光', link: '#', lat: cityData.lat - 0.01, lng: cityData.lng },
+                    { name: `${cityName}商业街`, time: '14:00-17:00', desc: '购物美食体验', link: '#', lat: cityData.lat, lng: cityData.lng - 0.01 }
+                ]}
+            ];
+        }
+        // Generate platform links for price comparison
+        function generatePlatformLinks(departure, destination, date) {
+            const dateStr = date.replace(/-/g, '');
+            return [
+                { name: '飞猪', class: 'fliggy', price: `¥${Math.floor(Math.random() * 500 + 800)}`, url: `https://www.fliggy.com/flight/list.htm?depCity=${departure}&arrCity=${destination}&depDate=${dateStr}` },
+                { name: '携程', class: 'ctrip', price: `¥${Math.floor(Math.random() * 500 + 800)}`, url: `https://flights.ctrip.com/itinerary/oneway/${departure}-${destination}?date=${date}` },
+                { name: '去哪儿', class: 'qunar', price: `¥${Math.floor(Math.random() * 500 + 800)}`, url: `https://flight.qunar.com/schedule/departure-${departure}-arrival-${destination}.shtml?fromDate=${date}` },
+                { name: '同程', class: 'tongcheng', price: `¥${Math.floor(Math.random() * 500 + 800)}`, url: `https://flight.ly.com/search?dcity=${departure}&acity=${destination}&ddate=${date}` }
+            ];
+        }
+
+        // Render merged price monitoring center
+        function renderPriceMonitoring(departure, destination, departDate) {
+            const platforms = generatePlatformLinks(departure, destination, departDate);
+            const lowestPrice = Math.min(...platforms.map(p => parseInt(p.price.replace('¥', ''))));
+            const avgPrice = Math.floor(platforms.reduce((sum, p) => sum + parseInt(p.price.replace('¥', '')), 0) / platforms.length);
+            const changePercent = Math.floor(Math.random() * 15 + 5);
+            
+            // Generate trend bars
+            const trendBars = Array.from({ length: 24 }, () => {
+                const height = Math.floor(Math.random() * 60 + 20);
+                return `<div class="chart-bar" style="height: ${height}px;" title="¥${Math.floor(height * 15 + 600)}"></div>`;
+            }).join('');
+            
+            const html = `
+                <div class="price-monitor-card">
+                    <div class="price-main">
+                        <div class="price-main-left">
+                            <div class="price-main-label">${departure} → ${destination}</div>
+                            <div class="price-main-value">¥${lowestPrice}</div>
+                        </div>
+                        <div class="price-change">
+                            <span class="material-icons" style="font-size: 14px;">trending_down</span>
+                            较昨日下降 ${changePercent}%
+                        </div>
+                    </div>
+                    <div class="price-platforms">
+                        ${platforms.map(p => `
+                            <a href="${p.url}" target="_blank" class="platform-link">
+                                <div class="platform-logo ${p.class}">${p.name[0]}</div>
+                                <div class="platform-info">
+                                    <div class="platform-name">${p.name}</div>
+                                    <div class="platform-price">${p.price} 起</div>
+                                </div>
+                                <span class="material-icons platform-arrow">arrow_forward</span>
+                            </a>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="trend-chart-container">
+                    <div class="trend-header">
+                        <div class="trend-title">24小时价格趋势</div>
+                        <div class="trend-period">实时更新中</div>
+                    </div>
+                    <div class="chart-bars">${trendBars}</div>
+                </div>
+            `;
+            
+            document.getElementById('priceDisplay').innerHTML = html;
+            document.getElementById('todayLowest').textContent = `¥${lowestPrice}`;
+            document.getElementById('todayChanges').textContent = `↓${changePercent}%`;
+        }
+
+        // Render popular strategies
+        function renderStrategies(destination) {
+            const strategies = [
+                { platform: '小红书', icon: 'xhs', title: `${destination}3天2晚超全攻略`, stats: '👁️ 12.5万 📝 328', desc: '包含交通、住宿、美食全方位指南' },
+                { platform: '抖音', icon: 'douyin', title: `${destination}必打卡景点TOP10`, stats: '▶️ 89万 👍 2.3万', desc: '本地人推荐的隐藏玩法' },
+                { platform: '马蜂窝', icon: 'mafengwo', title: `${destination}自由行完全手册`, stats: '⭐ 4.9 📖 156页', desc: '详细到小时的行程安排' }
+            ];
+            
+            const html = `<div class="strategy-grid">${strategies.map(s => `
+                <div class="strategy-item">
+                    <div class="strategy-header">
+                        <div class="platform-icon ${s.icon}">${s.platform[0]}</div>
+                        <div>
+                            <div class="strategy-title">${s.title}</div>
+                            <div class="strategy-stats">${s.stats}</div>
+                        </div>
+                    </div>
+                    <div class="strategy-desc">${s.desc}</div>
+                </div>
+            `).join('')}</div>`;
+            
+            document.getElementById('strategyContainer').innerHTML = html;
+        }
+
+        // Initialize Leaflet map
+        function initMap(centerLat, centerLng) {
+            if (map) {
+                map.remove();
+            }
+            
+            map = L.map('map').setView([centerLat, centerLng], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 18
+            }).addTo(map);
+            
+            markers = [];
+            showRoute = false;
+            document.getElementById('toggleRouteBtn').classList.remove('active');
+        }
+
+        // Add markers to map
+        function addMarkersToMap(spots) {
+            spots.forEach((spot, index) => {
+                const customIcon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div>${index + 1}</div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+                
+                const marker = L.marker([spot.lat, spot.lng], { icon: customIcon })
+                    .addTo(map)
+                    .bindPopup(`<b>第${spot.day}天 - ${spot.name}</b><br>${spot.time}<br>${spot.desc}`);
+                
+                markers.push(marker);
+                
+                // Add coverage circle
+                L.circle([spot.lat, spot.lng], {
+                    color: '#ff6b9d',
+                    fillColor: '#ff6b9d',
+                    fillOpacity: 0.1,
+                    radius: 500
+                }).addTo(map);
+            });
+            
+            // Fit bounds to show all markers
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.2));
+            }
+        }
+
+        // Draw route line between spots
+        function drawRoute(spots) {
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+            
+            const latlngs = spots.map(spot => [spot.lat, spot.lng]);
+            routeLine = L.polyline(latlngs, {
+                color: '#ff6b9d',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '8, 6'
+            }).addTo(map);
+        }
+
+        // Generate itinerary
+        function generateItinerary(destination, days) {
+            const cityData = cityDatabase.find(c => c.name === destination);
+            if (!cityData) {
+                showToast('未找到该城市数据');
+                return;
+            }
+            
+            const template = itineraryTemplates[destination] || getDefaultItinerary(destination, cityData);
+            const itinerarySection = document.getElementById('itinerarySection');
+            const itineraryText = document.getElementById('itineraryText');
+            
+            // Show itinerary section
+            itinerarySection.style.display = 'block';
+            
+            // Generate text content
+            let textHtml = '';
+            let allSpots = [];
+            
+            template.slice(0, days).forEach((dayPlan, dayIndex) => {
+                const date = new Date(currentPlan.departDate);
+                date.setDate(date.getDate() + dayIndex);
+                const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+                
+                textHtml += `
+                    <div class="day-plan">
+                        <div class="day-header">
+                            <div class="day-title">第${dayPlan.day}天</div>
+                            <div class="day-date">${dateStr}</div>
+                        </div>
+                        ${dayPlan.spots.map(spot => {
+                            allSpots.push({ ...spot, day: dayPlan.day });
+                            return `
+                                <div class="spot-item">
+                                    <div class="spot-name">
+                                        <span class="material-icons" style="font-size: 14px; color: var(--primary);">place</span>
+                                        ${spot.name}
+                                    </div>
+                                    <div class="spot-time">⏰ ${spot.time}</div>
+                                    <div class="spot-desc">${spot.desc}</div>
+                                    <a href="${spot.link}" target="_blank" class="spot-link">
+                                        <span class="material-icons">open_in_new</span>
+                                        查看详情
+                                    </a>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            });
+            
+            itineraryText.innerHTML = textHtml;
+            
+            // Initialize and populate map
+            setTimeout(() => {
+                initMap(cityData.lat, cityData.lng);
+                addMarkersToMap(allSpots);
+            }, 100);
+            
+            // Scroll to itinerary section
+            itinerarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            showToast('✨ AI旅行攻略已生成');
+        }
+
+        // Form submission
+        document.getElementById('travelForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const departure = document.getElementById('departure').value;
+            const destination = document.getElementById('destination').value;
+            const departDate = document.getElementById('departDate').value;
+            const returnDate = document.getElementById('returnDate').value;
+            const transportType = document.getElementById('transportType').value;
+            
+            if (!departure || !destination || !departDate || !returnDate) {
+                showToast('请填写完整信息');
+                return;
+            }
+            
+            currentPlan = { departure, destination, departDate, returnDate, transportType };
+            
+            // Update UI
+            document.getElementById('notifyStatus').style.display = 'flex';
+            document.getElementById('generateItineraryBtn').style.display = 'flex';
+            document.getElementById('totalPlans').textContent = '1';
+            document.getElementById('avgSavings').textContent = '¥268';
+            document.getElementById('notifications').textContent = '3';
+            document.getElementById('alertsCount').textContent = '2';
+            
+            // Render price monitoring with platform links
+            renderPriceMonitoring(departure, destination, departDate);
+            
+            // Render strategies
+            renderStrategies(destination);
+            
+            updateTime();
+            showToast('✅ 智能监控已启动');
+        });
+
+        // Generate itinerary button
+        document.getElementById('generateItineraryBtn').addEventListener('click', () => {
+            if (!currentPlan) {
+                showToast('请先创建出行计划');
+                return;
+            }
+            
+            const days = calculateDays();
+            if (!days || days <= 0) {
+                showToast('请检查日期设置');
+                return;
+            }
+            
+            generateItinerary(currentPlan.destination, Math.min(days, 3));
+        });
+
+        // Map controls
+        document.getElementById('toggleRouteBtn').addEventListener('click', function() {
+            showRoute = !showRoute;
+            this.classList.toggle('active');
+            
+            if (showRoute && markers.length > 1) {
+                // Extract spots from markers (simplified for demo)
+                const spots = markers.map((marker, idx) => ({
+                    lat: marker.getLatLng().lat,
+                    lng: marker.getLatLng().lng,
+                    day: Math.floor(idx / 2) + 1
+                }));
+                drawRoute(spots);
+                showToast('路线规划已显示');
+            } else if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+                showToast('路线规划已隐藏');
+            }
+        });
+
+        document.getElementById('resetMapBtn').addEventListener('click', () => {
+            if (map && markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.2));
+                showToast('地图视野已重置');
+            }
+        });
+
+        // Auto refresh every 5 minutes
+        setInterval(() => {
+            if (currentPlan) {
+                renderPriceMonitoring(currentPlan.departure, currentPlan.destination, currentPlan.departDate);
+                updateTime();
+            }
+        }, REFRESH_INTERVAL);
+
+        // Initialize searchable selects
+        initSearchableSelect('departureInput', 'departureDropdown', 'departure');
+        initSearchableSelect('destinationInput', 'destinationDropdown', 'destination');
+
+        // Set default dates
+        const today = new Date();
+        const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+        document.getElementById('departDate').valueAsDate = today;
+        document.getElementById('returnDate').valueAsDate = nextWeek;
+        calculateDays();
+        
+        updateTime();
+    </script>
+</body>
+</html>
