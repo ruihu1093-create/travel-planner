@@ -45,7 +45,8 @@
         .searchable-input:focus { outline: none; border-color: var(--primary); }
         .searchable-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 2px solid var(--primary); border-top: none; border-radius: 0 0 5px 5px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .searchable-dropdown.show { display: block; }
-        .dropdown-item { padding: 8px 10px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--bg); }
+        .dropdown-header { padding: 6px 10px; background: var(--bg); color: var(--text-secondary); font-size: 10px; font-weight: 600; position: sticky; top: 0; }
+        .dropdown-item { padding: 8px 10px 8px 24px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--bg); }
         .dropdown-item:hover { background: var(--primary-light); }
         .dropdown-item:last-child { border-bottom: none; }
         .dropdown-empty { padding: 12px; text-align: center; color: var(--text-secondary); font-size: 11px; }
@@ -295,27 +296,56 @@
         const REFRESH_INTERVAL = 5 * 60 * 1000;
         
         const cityDatabase = [
-            { name: '北京', lat: 39.9042, lng: 116.4074 },
-            { name: '上海', lat: 31.2304, lng: 121.4737 },
-            { name: '广州', lat: 23.1291, lng: 113.2644 },
-            { name: '深圳', lat: 22.5431, lng: 114.0579 },
-            { name: '成都', lat: 30.5728, lng: 104.0668 },
-            { name: '重庆', lat: 29.4316, lng: 106.9123 },
-            { name: '杭州', lat: 30.2741, lng: 120.1551 },
-            { name: '南京', lat: 32.0603, lng: 118.7969 },
-            { name: '武汉', lat: 30.5928, lng: 114.3055 },
-            { name: '西安', lat: 34.3416, lng: 108.9398 },
-            { name: '厦门', lat: 24.4798, lng: 118.0894 },
-            { name: '三亚', lat: 18.2528, lng: 109.5117 },
-            { name: '昆明', lat: 25.0389, lng: 102.7183 },
-            { name: '青岛', lat: 36.0671, lng: 120.3826 },
-            { name: '大连', lat: 38.9140, lng: 121.6147 },
-            { name: '大理', lat: 25.6065, lng: 100.2676 },
-            { name: '丽江', lat: 26.8721, lng: 100.2334 },
-            { name: '桂林', lat: 25.2736, lng: 110.2902 },
-            { name: '长沙', lat: 28.2282, lng: 112.9388 },
-            { name: '天津', lat: 39.3434, lng: 117.3616 },
-            { name: '苏州', lat: 31.2989, lng: 120.5853 }
+            { name: '北京', province: '北京市', lat: 39.9042, lng: 116.4074 },
+            { name: '上海', province: '上海市', lat: 31.2304, lng: 121.4737 },
+            { name: '广州', province: '广东省', lat: 23.1291, lng: 113.2644 },
+            { name: '深圳', province: '广东省', lat: 22.5431, lng: 114.0579 },
+            { name: '成都', province: '四川省', lat: 30.5728, lng: 104.0668 },
+            { name: '重庆', province: '重庆市', lat: 29.4316, lng: 106.9123 },
+            { name: '杭州', province: '浙江省', lat: 30.2741, lng: 120.1551 },
+            { name: '南京', province: '江苏省', lat: 32.0603, lng: 118.7969 },
+            { name: '武汉', province: '湖北省', lat: 30.5928, lng: 114.3055 },
+            { name: '西安', province: '陕西省', lat: 34.3416, lng: 108.9398 },
+            { name: '厦门', province: '福建省', lat: 24.4798, lng: 118.0894 },
+            { name: '三亚', province: '海南省', lat: 18.2528, lng: 109.5117 },
+            { name: '昆明', province: '云南省', lat: 25.0389, lng: 102.7183 },
+            { name: '青岛', province: '山东省', lat: 36.0671, lng: 120.3826 },
+            { name: '大连', province: '辽宁省', lat: 38.9140, lng: 121.6147 },
+            { name: '大理', province: '云南省', lat: 25.6065, lng: 100.2676 },
+            { name: '丽江', province: '云南省', lat: 26.8721, lng: 100.2334 },
+            { name: '桂林', province: '广西壮族自治区', lat: 25.2736, lng: 110.2902 },
+            { name: '长沙', province: '湖南省', lat: 28.2282, lng: 112.9388 },
+            { name: '天津', province: '天津市', lat: 39.3434, lng: 117.3616 },
+            { name: '苏州', province: '江苏省', lat: 31.2989, lng: 120.5853 },
+            { name: '哈尔滨', province: '黑龙江省', lat: 45.8038, lng: 126.5340 },
+            { name: '长春', province: '吉林省', lat: 43.8171, lng: 125.3235 },
+            { name: '沈阳', province: '辽宁省', lat: 41.8057, lng: 123.4328 },
+            { name: '济南', province: '山东省', lat: 36.6512, lng: 117.1201 },
+            { name: '郑州', province: '河南省', lat: 34.7466, lng: 113.6253 },
+            { name: '石家庄', province: '河北省', lat: 38.0428, lng: 114.5149 },
+            { name: '太原', province: '山西省', lat: 37.8706, lng: 112.5489 },
+            { name: '合肥', province: '安徽省', lat: 31.8206, lng: 117.2272 },
+            { name: '福州', province: '福建省', lat: 26.0745, lng: 119.2965 },
+            { name: '南昌', province: '江西省', lat: 28.6829, lng: 115.8579 },
+            { name: '贵阳', province: '贵州省', lat: 26.6470, lng: 106.6302 },
+            { name: '南宁', province: '广西壮族自治区', lat: 22.8170, lng: 108.3665 },
+            { name: '海口', province: '海南省', lat: 20.0444, lng: 110.1999 },
+            { name: '兰州', province: '甘肃省', lat: 36.0611, lng: 103.8343 },
+            { name: '西宁', province: '青海省', lat: 36.6171, lng: 101.7782 },
+            { name: '银川', province: '宁夏回族自治区', lat: 38.4681, lng: 106.2731 },
+            { name: '乌鲁木齐', province: '新疆维吾尔自治区', lat: 43.8256, lng: 87.6168 },
+            { name: '拉萨', province: '西藏自治区', lat: 29.6500, lng: 91.1409 },
+            { name: '呼和浩特', province: '内蒙古自治区', lat: 40.8414, lng: 111.7519 },
+            { name: '宁波', province: '浙江省', lat: 29.8683, lng: 121.5440 },
+            { name: '温州', province: '浙江省', lat: 28.0006, lng: 120.6719 },
+            { name: '无锡', province: '江苏省', lat: 31.4912, lng: 120.3119 },
+            { name: '佛山', province: '广东省', lat: 23.0218, lng: 113.1219 },
+            { name: '东莞', province: '广东省', lat: 23.0430, lng: 113.7633 },
+            { name: '珠海', province: '广东省', lat: 22.2719, lng: 113.5767 },
+            { name: '烟台', province: '山东省', lat: 37.4638, lng: 121.4478 },
+            { name: '洛阳', province: '河南省', lat: 34.6197, lng: 112.4539 },
+            { name: '开封', province: '河南省', lat: 34.7970, lng: 114.3074 },
+            { name: '张家界', province: '湖南省', lat: 29.1171, lng: 110.4792 }
         ];
 
         function showToast(msg) {
@@ -331,6 +361,7 @@
             document.getElementById('lastUpdate').textContent = `最后更新: ${t}`;
         }
 
+        // Enhanced searchable select with Province-City grouping
         function initSearchableSelect(inputId, dropdownId, hiddenId) {
             const input = document.getElementById(inputId);
             const dropdown = document.getElementById(dropdownId);
@@ -353,8 +384,10 @@
         }
 
         function filterDropdown(query, dropdown, hidden) {
+            const lowerQuery = query.toLowerCase();
             const filtered = cityDatabase.filter(city => 
-                city.name.toLowerCase().includes(query.toLowerCase())
+                city.name.toLowerCase().includes(lowerQuery) || 
+                city.province.toLowerCase().includes(lowerQuery)
             );
             
             dropdown.innerHTML = '';
@@ -364,17 +397,34 @@
                 return;
             }
             
+            // Group by province
+            const grouped = {};
             filtered.forEach(city => {
-                const item = document.createElement('div');
-                item.className = 'dropdown-item';
-                item.textContent = city.name;
-                item.addEventListener('click', () => {
-                    const inputId = hidden.replace('departure', 'departureInput').replace('destination', 'destinationInput');
-                    document.getElementById(inputId).value = city.name;
-                    hidden.value = city.name;
-                    dropdown.classList.remove('show');
+                if (!grouped[city.province]) grouped[city.province] = [];
+                grouped[city.province].push(city);
+            });
+            
+            Object.keys(grouped).forEach(province => {
+                // Add province header
+                const provinceHeader = document.createElement('div');
+                provinceHeader.className = 'dropdown-header';
+                provinceHeader.textContent = province;
+                dropdown.appendChild(provinceHeader);
+                
+                // Add cities under this province
+                grouped[province].forEach(city => {
+                    const item = document.createElement('div');
+                    item.className = 'dropdown-item';
+                    item.textContent = city.name;
+                    item.addEventListener('click', () => {
+                        const inputId = hidden.replace('departure', 'departureInput').replace('destination', 'destinationInput');
+                        const targetInput = document.getElementById(inputId);
+                        targetInput.value = city.name;
+                        hidden.value = city.name;
+                        dropdown.classList.remove('show');
+                    });
+                    dropdown.appendChild(item);
                 });
-                dropdown.appendChild(item);
             });
         }
 
