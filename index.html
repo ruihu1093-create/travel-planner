@@ -857,12 +857,43 @@
         initSearchableSelect('departureInput', 'departureDropdown', 'departure');
         initSearchableSelect('destinationInput', 'destinationDropdown', 'destination');
 
-        // Set default dates
+        // Clear form on load if no user input history (optional: can be triggered by a reset button)
+        function clearForm() {
+            document.getElementById('departureInput').value = '';
+            document.getElementById('destinationInput').value = '';
+            document.getElementById('departure').value = '';
+            document.getElementById('destination').value = '';
+            document.getElementById('departDate').value = '';
+            document.getElementById('returnDate').value = '';
+            document.getElementById('daysDisplay').textContent = '选择日期后自动计算';
+            document.getElementById('travelForm').reset();
+            // Reset UI states
+            document.getElementById('notifyStatus').style.display = 'none';
+            document.getElementById('generateItineraryBtn').style.display = 'none';
+            document.getElementById('priceDisplay').innerHTML = `
+                <div class="empty" style="padding: 16px 8px;">
+                    <div class="empty-icon material-icons" style="font-size: 32px;">search</div>
+                    <div class="empty-title" style="font-size: 11px;">暂无监控数据</div>
+                    <div class="empty-desc" style="font-size: 9px;">请在左侧设定出行计划</div>
+                </div>`;
+            document.getElementById('strategyContainer').innerHTML = `
+                <div class="empty" style="padding: 16px 8px;">
+                    <div class="empty-icon material-icons" style="font-size: 32px;">article</div>
+                    <div class="empty-title" style="font-size: 11px;">攻略推荐待生成</div>
+                    <div class="empty-desc" style="font-size: 9px;">设定计划后自动抓取热门攻略</div>
+                </div>`;
+            document.getElementById('itinerarySection').style.display = 'none';
+            currentPlan = null;
+        }
+
+        // Set default dates (Commented out to keep form empty on load as requested)
+        /*
         const today = new Date();
         const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
         document.getElementById('departDate').valueAsDate = today;
         document.getElementById('returnDate').valueAsDate = nextWeek;
         calculateDays();
+        */
         
         updateTime();
     </script>
