@@ -763,16 +763,22 @@
         document.getElementById('travelForm').addEventListener('submit', (e) => {
             e.preventDefault();
             
-            const departure = document.getElementById('departure').value;
-            const destination = document.getElementById('destination').value;
+            const departureInput = document.getElementById('departureInput').value;
+            const destinationInput = document.getElementById('destinationInput').value;
+            const departure = document.getElementById('departure').value || (cityDatabase.find(c => c.name === departureInput) ? departureInput : '');
+            const destination = document.getElementById('destination').value || (cityDatabase.find(c => c.name === destinationInput) ? destinationInput : '');
             const departDate = document.getElementById('departDate').value;
             const returnDate = document.getElementById('returnDate').value;
             const transportType = document.getElementById('transportType').value;
             
             if (!departure || !destination || !departDate || !returnDate) {
-                showToast('请填写完整信息');
+                showToast('请填写完整信息（请确保城市已选择）');
                 return;
             }
+            
+            // Sync hidden fields if they were empty but input was valid
+            document.getElementById('departure').value = departure;
+            document.getElementById('destination').value = destination;
             
             currentPlan = { departure, destination, departDate, returnDate, transportType };
             
